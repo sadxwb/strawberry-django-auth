@@ -2,10 +2,11 @@ import binascii
 import os
 import time
 from datetime import datetime
+from urllib.parse import urlparse
 
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
-from django.contrib.sites.shortcuts import get_current_site
+from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import send_mail
 from django.db import models
 from django.db.models import Case, When
@@ -40,7 +41,7 @@ class UserStatus(models.Model):
     archived = models.BooleanField(default=False)
 
     def __str__(self):
-        return "%s - status" % (self.user)
+        return "%s - status" % self.user
 
     def send(self, subject, template, context, recipient_list=None):
         _subject = render_to_string(subject, context).replace("\n", " ").strip()
@@ -59,31 +60,26 @@ class UserStatus(models.Model):
         )
 
     def get_email_context(self, info: Info, path, action, **kwargs):
+        """
+        Generate email context from user and path.
+        """
+        # validate path
+        parsed = urlparse(path)
+        if not parsed.scheme or not parsed.netloc:
+            raise ImproperlyConfigured(
+                "Email path must be an absolute URL, e.g. "
+                "'https://example.com/activation/{token}'."
+            )
         token = get_token(self.user, action, **kwargs)
-        is_channels = isinstance(info.context, dict)
-        if is_channels:
-            request = info.context["request"]
-            domain, port = request.headers["host"].split(":")
-            site_name = domain
-            protocol = request.consumer.scope["type"]
-        else:
-            request = info.context.request
-            site = get_current_site(request)
-            port = request.get_port()
-            site_name = site.name
-            domain = site.domain
-            protocol = "https" if request.is_secure() else "http"
+        # validate token
+        try:
+            url = path.format_map({"token": token})
+        except (KeyError, ValueError) as e:
+            raise ImproperlyConfigured(f"Invalid email path format: {path!r}") from e
 
         return {
             "user": self.user,
-            "request": request,
-            "token": token,
-            "port": port,
-            "site_name": site_name,
-            "domain": domain,
-            "protocol": protocol,
-            "path": path,
-            "timestamp": time.time(),
+            "url": url,
             **app_settings.EMAIL_TEMPLATE_VARIABLES,
         }
 
@@ -96,7 +92,7 @@ class UserStatus(models.Model):
         return self.send(subject, template, email_context, *args, **kwargs)
 
     def resend_activation_email(self, info, *args, **kwargs):
-        if self.verified is True:
+        if self.verified:
             raise UserAlreadyVerified
         email_context = self.get_email_context(
             info, app_settings.ACTIVATION_PATH_ON_EMAIL, TokenAction.ACTIVATION
@@ -128,7 +124,7 @@ class UserStatus(models.Model):
         )
         user = USER_MODEL._default_manager.get(**payload)
         user_status = cls.objects.get(user=user)
-        if user_status.verified is False:
+        if not user_status.verified:
             user_status.verified = True
             user_status.save(update_fields=["verified"])
             user_verified.send(sender=cls, user=user)
@@ -138,14 +134,14 @@ class UserStatus(models.Model):
     @classmethod
     def unarchive(cls, user):
         user_status = cls.objects.get(user=user)
-        if user_status.archived is True:
+        if user_status.archived:
             user_status.archived = False
             user_status.save(update_fields=["archived"])
 
     @classmethod
     def archive(cls, user):
         user_status = cls.objects.get(user=user)
-        if user_status.archived is False:
+        if not user_status.archived:
             user_status.archived = True
             user_status.save(update_fields=["archived"])
 

@@ -149,7 +149,7 @@ def default_captcha_text_validator(original: str, received: str) -> bool:
     return original == received
 
 
-@dataclass
+@dataclass(frozen=True)
 class GqlAuthSettings:
     ALLOW_LOGIN_NOT_VERIFIED: bool = False
     """"""
@@ -210,9 +210,9 @@ class GqlAuthSettings:
 
     EMAIL_FROM: DjangoSetting[str] = DjangoSetting("DEFAULT_FROM_EMAIL")
     SEND_ACTIVATION_EMAIL: bool = True
-    ACTIVATION_PATH_ON_EMAIL: str = "activate"
-    PASSWORD_SET_PATH_ON_EMAIL: str = "password-set"
-    PASSWORD_RESET_PATH_ON_EMAIL: str = "password-reset"
+    ACTIVATION_PATH_ON_EMAIL: str = None
+    PASSWORD_SET_PATH_ON_EMAIL: str = None
+    PASSWORD_RESET_PATH_ON_EMAIL: str = None
     # email subjects templates
     EMAIL_SUBJECT_ACTIVATION: str = "email/activation_subject.txt"
     EMAIL_SUBJECT_ACTIVATION_RESEND: str = "email/activation_subject.txt"
