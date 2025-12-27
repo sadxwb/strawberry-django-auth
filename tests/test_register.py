@@ -98,12 +98,23 @@ def test_register_twice_fails(verified_user_status_type, anonymous_schema, db):
     mock.MagicMock(side_effect=SMTPException),
 )
 @pytest.mark.default_user
-def test_register_email_send_fail(verified_user_status_type, captcha, anonymous_schema):
+def test_register_email_send_fail(
+    verified_user_status_type, captcha, anonymous_schema, override_gqlauth
+):
     from gqlauth.settings import gqlauth_settings as app_settings
 
     us = verified_user_status_type.user
-    app_settings.SEND_ACTIVATION_EMAIL = True
-    executed = anonymous_schema.execute(query=_arg_query(us, captcha)).data["register"]
-    assert not executed["success"]
-    assert executed["errors"]["nonFieldErrors"] == Messages.EMAIL_FAIL
+    with override_gqlauth(
+        app_settings.SEND_ACTIVATION_EMAIL, True, "SEND_ACTIVATION_EMAIL"
+    ):
+        with override_gqlauth(
+            app_settings.ACTIVATION_PATH_ON_EMAIL,
+            "https://example.com/verify/{token}",
+            "ACTIVATION_PATH_ON_EMAIL",
+        ):
+            executed = anonymous_schema.execute(query=_arg_query(us, captcha)).data[
+                "register"
+            ]
+            assert not executed["success"]
+            assert executed["errors"]["nonFieldErrors"] == Messages.EMAIL_FAIL
     assert not get_user_model().objects.all()

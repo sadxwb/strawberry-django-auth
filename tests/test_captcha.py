@@ -40,28 +40,18 @@ def test_register_user_require_captcha_validation(unverified_schema):
     res = unverified_schema.execute(
         query=register_query_without_cap_fields(username="fdsafsdfgv"), relay=True
     )
-    assert (
-        "identifier' of required type 'UUID!' was not provided."
-        in res.errors[0].message
-    )
-    assert (
-        "userEntry' of required type 'String!' was not provided"
-        in res.errors[1].message
-    )
+    assert res.errors is None
+    assert res.data["register"]["success"] is False
+    assert res.data["register"]["errors"]["captcha"] == Messages.CAPTCHA_EXPIRED
 
 
 def test_login_require_captcha_validation(unverified_schema):
     res = unverified_schema.execute(
         query=login_query_without_cap_fields(username="fake"), relay=True
     )
-    assert (
-        "identifier' of required type 'UUID!' was not provided."
-        in res.errors[0].message
-    )
-    assert (
-        "userEntry' of required type 'String!' was not provided"
-        in res.errors[1].message
-    )
+    assert res.errors is None
+    assert res.data["tokenAuth"]["success"] is False
+    assert res.data["tokenAuth"]["errors"]["captcha"] == Messages.CAPTCHA_EXPIRED
 
 
 def test_register_wrong_captcha_validation(captcha, unverified_schema):

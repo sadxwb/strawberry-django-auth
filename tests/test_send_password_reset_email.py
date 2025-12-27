@@ -11,12 +11,13 @@ pytestmark = pytest.mark.default_user
 
 
 def _arg_query(user: UserType):
+    email = getattr(user, "email", "dummy@email.com")
     return """
     mutation {
     sendPasswordResetEmail(email: "%s")
         { success, errors }
     }
-    """ % (user.email)
+    """ % (email)
 
 
 def test_send_email_invalid_email(db_verified_user_status, anonymous_schema):
@@ -25,7 +26,8 @@ def test_send_email_invalid_email(db_verified_user_status, anonymous_schema):
     (due to security measures)
     """
     user = db_verified_user_status.user
-    user.email = "invalid@email.com"
+    if hasattr(user, "email"):
+        user.email = "invalid@email.com"
     query = _arg_query(user)
     executed = anonymous_schema.execute(query=query)
     assert not executed.errors
@@ -36,7 +38,8 @@ def test_send_email_invalid_email(db_verified_user_status, anonymous_schema):
 
 def test_invalid_form(db_verified_user_status, anonymous_schema):
     user = db_verified_user_status.user
-    user.email = "invalid * form@email.com"
+    if hasattr(user, "email"):
+        user.email = "invalid * form@email.com"
     query = _arg_query(user)
     executed = anonymous_schema.execute(query=query)
     assert not executed.errors
@@ -52,6 +55,10 @@ def test_send_email_valid_email_verified_user(
     executed = anonymous_schema.execute(query=query)
     assert not executed.errors
     executed = executed.data["sendPasswordResetEmail"]
+    if not executed["success"]:
+        print(
+            f"DEBUG ERRORS in test_send_email_valid_email_verified_user: {executed['errors']}"
+        )
     assert executed["success"]
     assert not executed["errors"]
 

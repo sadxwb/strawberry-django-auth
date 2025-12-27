@@ -56,6 +56,7 @@ class Messages:
             "code": "password_already_set",
         }
     ]
+    EMAIL_DISABLED = [{"message": _("Email is disabled."), "code": "email_disabled"}]
 
 
 class TokenAction:

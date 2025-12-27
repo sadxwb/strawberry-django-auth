@@ -206,13 +206,24 @@ def db_apple(transactional_db) -> Apple:
 
 
 @pytest.fixture()
-def allow_login_not_verified(settings) -> None:
-    settings.GQL_AUTH.ALLOW_LOGIN_NOT_VERIFIED = True
+def allow_login_not_verified(settings, app_settings) -> None:
+    old = app_settings.ALLOW_LOGIN_NOT_VERIFIED
+    object.__setattr__(app_settings, "ALLOW_LOGIN_NOT_VERIFIED", True)
+    yield
+    object.__setattr__(app_settings, "ALLOW_LOGIN_NOT_VERIFIED", old)
 
 
-@pytest.fixture()
+@pytest.fixture(autouse=True)
 def app_settings(settings) -> GqlAuthSettings:
-    return settings.GQL_AUTH
+    from gqlauth.settings import gqlauth_settings
+
+    # sync singleton with current django settings
+    if hasattr(settings, "GQL_AUTH"):
+        # print(f"DEBUG: syncing settings. GQL_AUTH.SEND_PASSWORD_RESET_EMAIL={settings.GQL_AUTH.SEND_PASSWORD_RESET_EMAIL}")
+        for field in dataclasses.fields(GqlAuthSettings):
+            val = getattr(settings.GQL_AUTH, field.name)
+            object.__setattr__(gqlauth_settings, field.name, val)
+    return gqlauth_settings
 
 
 @pytest.fixture
@@ -228,9 +239,9 @@ def override_gqlauth(app_settings):
                 raise ValueError(f"setting not found for value {default}")
         else:
             default = getattr(app_settings, name)
-        setattr(app_settings, name, replace)
+        object.__setattr__(app_settings, name, replace)
         yield
-        setattr(app_settings, name, default)
+        object.__setattr__(app_settings, name, default)
 
     return inner
 
@@ -277,8 +288,6 @@ def unverified_schema(rf, db_unverified_user_status) -> SchemaHelper:
     return SchemaHelper.create(rf=rf, us_type=db_unverified_user_status)
 
 
-@pytest.mark.asyncio
-@pytest.mark.django_db(transaction=True)
 @pytest.fixture()
 async def verified_channels_app_communicator(
     db_verified_user_status,
@@ -301,3 +310,26 @@ async def unverified_channels_app_communicator(
         # We need this in the register test
         comm.scope["headers"].append(("host", "localhost:8000"))
         yield comm
+
+
+def pytest_collection_modifyitems(config, items):
+    import os
+
+    settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+    if not settings_module:
+        settings_module = config.getini("DJANGO_SETTINGS_MODULE")
+
+    is_settings_b = "settings_b" in settings_module
+
+    skip_settings_b = pytest.mark.skip(
+        reason="skipping settings_b tests when not using settings_b settings"
+    )
+    skip_default = pytest.mark.skip(
+        reason="skipping default_user tests when using settings_b settings"
+    )
+
+    for item in items:
+        if "settings_b" in item.keywords and not is_settings_b:
+            item.add_marker(skip_settings_b)
+        if "default_user" in item.keywords and is_settings_b:
+            item.add_marker(skip_default)

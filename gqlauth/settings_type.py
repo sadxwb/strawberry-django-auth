@@ -210,9 +210,19 @@ class GqlAuthSettings:
 
     EMAIL_FROM: DjangoSetting[str] = DjangoSetting("DEFAULT_FROM_EMAIL")
     SEND_ACTIVATION_EMAIL: bool = True
-    ACTIVATION_PATH_ON_EMAIL: str = None
-    PASSWORD_SET_PATH_ON_EMAIL: str = None
-    PASSWORD_RESET_PATH_ON_EMAIL: str = None
+    ACTIVATION_PATH_ON_EMAIL: Optional[str] = (
+        "https://example.com/verify-account/{token}"
+    )
+    """Activation path on email."""
+    PASSWORD_SET_PATH_ON_EMAIL: Optional[str] = (
+        "https://example.com/password-set/{token}"
+    )
+    """Password set path on email."""
+    PASSWORD_RESET_PATH_ON_EMAIL: Optional[str] = (
+        "https://example.com/password-reset/{token}"
+    )
+    """Password reset path on email."""
+    SEND_PASSWORD_RESET_EMAIL: bool = True
     # email subjects templates
     EMAIL_SUBJECT_ACTIVATION: str = "email/activation_subject.txt"
     EMAIL_SUBJECT_ACTIVATION_RESEND: str = "email/activation_subject.txt"
@@ -276,5 +286,11 @@ class GqlAuthSettings:
 
     def __post_init__(self):
         # if there override the defaults
-        if "email" not in {field_.name for field_ in self.REGISTER_MUTATION_FIELDS}:
-            self.SEND_ACTIVATION_EMAIL = False
+        field_names = set()
+        for field_ in self.REGISTER_MUTATION_FIELDS:
+            if hasattr(field_, "python_name") and field_.python_name:
+                field_names.add(field_.python_name)
+            if hasattr(field_, "name") and field_.name:
+                field_names.add(field_.name)
+        if "email" not in field_names:
+            object.__setattr__(self, "SEND_ACTIVATION_EMAIL", False)

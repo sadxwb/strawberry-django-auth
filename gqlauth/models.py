@@ -1,6 +1,5 @@
 import binascii
 import os
-import time
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -84,38 +83,48 @@ class UserStatus(models.Model):
         }
 
     def send_activation_email(self, info, *args, **kwargs):
-        email_context = self.get_email_context(
-            info, app_settings.ACTIVATION_PATH_ON_EMAIL, TokenAction.ACTIVATION
-        )
-        template = app_settings.EMAIL_TEMPLATE_ACTIVATION
-        subject = app_settings.EMAIL_SUBJECT_ACTIVATION
-        return self.send(subject, template, email_context, *args, **kwargs)
+        if app_settings.SEND_ACTIVATION_EMAIL:
+            email_context = self.get_email_context(
+                info, app_settings.ACTIVATION_PATH_ON_EMAIL, TokenAction.ACTIVATION
+            )
+            template = app_settings.EMAIL_TEMPLATE_ACTIVATION
+            subject = app_settings.EMAIL_SUBJECT_ACTIVATION
+            return self.send(subject, template, email_context, *args, **kwargs)
+        return None
 
     def resend_activation_email(self, info, *args, **kwargs):
         if self.verified:
             raise UserAlreadyVerified
-        email_context = self.get_email_context(
-            info, app_settings.ACTIVATION_PATH_ON_EMAIL, TokenAction.ACTIVATION
-        )
-        template = app_settings.EMAIL_TEMPLATE_ACTIVATION_RESEND
-        subject = app_settings.EMAIL_SUBJECT_ACTIVATION_RESEND
-        return self.send(subject, template, email_context, *args, **kwargs)
+        if app_settings.SEND_ACTIVATION_EMAIL:
+            email_context = self.get_email_context(
+                info, app_settings.ACTIVATION_PATH_ON_EMAIL, TokenAction.ACTIVATION
+            )
+            template = app_settings.EMAIL_TEMPLATE_ACTIVATION_RESEND
+            subject = app_settings.EMAIL_SUBJECT_ACTIVATION_RESEND
+            return self.send(subject, template, email_context, *args, **kwargs)
+        return None
 
     def send_password_set_email(self, info, *args, **kwargs):
-        email_context = self.get_email_context(
-            info, app_settings.PASSWORD_SET_PATH_ON_EMAIL, TokenAction.PASSWORD_SET
-        )
-        template = app_settings.EMAIL_TEMPLATE_PASSWORD_SET
-        subject = app_settings.EMAIL_SUBJECT_PASSWORD_SET
-        return self.send(subject, template, email_context, *args, **kwargs)
+        if app_settings.SEND_PASSWORD_SET_EMAIL:
+            email_context = self.get_email_context(
+                info, app_settings.PASSWORD_SET_PATH_ON_EMAIL, TokenAction.PASSWORD_SET
+            )
+            template = app_settings.EMAIL_TEMPLATE_PASSWORD_SET
+            subject = app_settings.EMAIL_SUBJECT_PASSWORD_SET
+            return self.send(subject, template, email_context, *args, **kwargs)
+        return None
 
     def send_password_reset_email(self, info, *args, **kwargs):
-        email_context = self.get_email_context(
-            info, app_settings.PASSWORD_RESET_PATH_ON_EMAIL, TokenAction.PASSWORD_RESET
-        )
-        template = app_settings.EMAIL_TEMPLATE_PASSWORD_RESET
-        subject = app_settings.EMAIL_SUBJECT_PASSWORD_RESET
-        return self.send(subject, template, email_context, *args, **kwargs)
+        if app_settings.SEND_PASSWORD_RESET_EMAIL:
+            email_context = self.get_email_context(
+                info,
+                app_settings.PASSWORD_RESET_PATH_ON_EMAIL,
+                TokenAction.PASSWORD_RESET,
+            )
+            template = app_settings.EMAIL_TEMPLATE_PASSWORD_RESET
+            subject = app_settings.EMAIL_SUBJECT_PASSWORD_RESET
+            return self.send(subject, template, email_context, *args, **kwargs)
+        return None
 
     @classmethod
     def verify(cls, token):

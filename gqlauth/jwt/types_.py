@@ -126,9 +126,8 @@ class TokenType:
 @inject_fields(app_settings.LOGIN_FIELDS)
 class ObtainJSONWebTokenInput:
     password: str
-    if app_settings.LOGIN_REQUIRE_CAPTCHA:
-        identifier: UUID
-        userEntry: str
+    identifier: Optional[UUID] = strawberry.field(default=None)
+    userEntry: Optional[str] = strawberry.field(default=None)
 
 
 @strawberry.type(

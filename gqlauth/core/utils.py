@@ -69,7 +69,12 @@ def cast_to_status_user(user: USER_UNION) -> UserProto:
 
 
 def get_user_by_email(email: str) -> "UserProto":
-    user = USER_MODEL.objects.get(**{USER_MODEL.EMAIL_FIELD: email})
+    email_field = USER_MODEL.EMAIL_FIELD
+    if not email_field:
+        from django.core.exceptions import ObjectDoesNotExist
+
+        raise ObjectDoesNotExist
+    user = USER_MODEL.objects.get(**{email_field: email})
     assert hasattr(user, "status")
     return user  # type: ignore
 

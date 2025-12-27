@@ -55,7 +55,8 @@ class Query(UserQueries):
         ]
     )
     def whatsMyUserName(self, info: Info) -> str:
-        return get_user(info).username
+        user = get_user(info)
+        return getattr(user, user.USERNAME_FIELD)
 
     @strawberry.field()
     def amIAnonymous(self, info: Info) -> bool:
@@ -72,7 +73,7 @@ class Subscription:
         user = get_user(info)
         assert user.is_authenticated
         for _ in range(target):
-            yield get_user(info).username
+            yield getattr(user, user.USERNAME_FIELD)
 
 
 arg_schema = JwtSchema(query=Query, mutation=Mutation, subscription=Subscription)

@@ -40,6 +40,7 @@ GQL_AUTH = GqlAuthSettings(  # noqa F405
     },
     EMAIL_FROM=DjangoSetting.override("SomeDiffrentEmail@thanInDjango.settings"),
     JWT_PAYLOAD_PK=phone_number_field,
+    SEND_PASSWORD_RESET_EMAIL=False,
 )
 
 INSTALLED_APPS += ["customuser"]  # noqa F405

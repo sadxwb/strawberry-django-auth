@@ -2,7 +2,7 @@ import contextlib
 from collections.abc import Callable
 from dataclasses import asdict
 from smtplib import SMTPException
-from typing import cast
+from typing import Optional, cast
 from uuid import UUID
 
 import strawberry
@@ -120,13 +120,11 @@ class RegisterMixin(BaseMixin):
     @strawberry.input
     @inject_fields(app_settings.REGISTER_MUTATION_FIELDS)
     class RegisterInput:
-        if not app_settings.ALLOW_PASSWORDLESS_REGISTRATION:
-            password1: str
-            password2: str
+        password1: Optional[str] = strawberry.field(default=None)
+        password2: Optional[str] = strawberry.field(default=None)
 
-        if app_settings.REGISTER_REQUIRE_CAPTCHA:
-            identifier: UUID
-            userEntry: str
+        identifier: Optional[UUID] = strawberry.field(default=None)
+        userEntry: Optional[str] = strawberry.field(default=None)
 
     form = (
         PasswordLessRegisterForm
@@ -136,7 +134,7 @@ class RegisterMixin(BaseMixin):
 
     @classmethod
     def resolve_mutation(cls, info, input_: RegisterInput) -> MutationNormalOutput:
-        if app_settings.LOGIN_REQUIRE_CAPTCHA:
+        if app_settings.REGISTER_REQUIRE_CAPTCHA and not app_settings.CI_MODE:
             check_res = check_captcha(input_)
             if check_res != Messages.CAPTCHA_VALID:
                 return MutationNormalOutput(
@@ -218,6 +216,10 @@ class ResendActivationEmailMixin(BaseMixin):
             email = input_.email
             f = EmailForm({"email": email})
             if f.is_valid():
+                if not app_settings.SEND_ACTIVATION_EMAIL:
+                    return MutationNormalOutput(
+                        success=False, errors={"email": Messages.EMAIL_DISABLED}
+                    )
                 user = get_user_by_email(email)
                 user.status.resend_activation_email(info)
                 return MutationNormalOutput(success=True)
@@ -253,6 +255,10 @@ class SendPasswordResetEmailMixin(BaseMixin):
             email = input_.email
             f = EmailForm({"email": email})
             if f.is_valid():
+                if not app_settings.SEND_PASSWORD_RESET_EMAIL:
+                    return MutationNormalOutput(
+                        success=False, errors={"email": Messages.EMAIL_DISABLED}
+                    )
                 user = get_user_by_email(email)
                 user.status.send_password_reset_email(info, [email])
                 return MutationNormalOutput(success=True)
@@ -263,6 +269,10 @@ class SendPasswordResetEmailMixin(BaseMixin):
             return MutationNormalOutput(success=False, errors=Messages.EMAIL_FAIL)
         except UserNotVerified:
             user = get_user_by_email(input_.email)
+            if not app_settings.SEND_ACTIVATION_EMAIL:
+                return MutationNormalOutput(
+                    success=False, errors={"email": Messages.EMAIL_DISABLED}
+                )
             try:
                 user.status.resend_activation_email(info)
                 return MutationNormalOutput(
